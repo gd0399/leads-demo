@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sales Leads Tracker</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; color: #222; }
+    h1 { margin-bottom: 0.25rem; }
+    form.add { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.5rem; align-items: end; margin: 1.5rem 0; }
+    form.add label { display: flex; flex-direction: column; font-size: 0.85rem; gap: 0.25rem; }
+    input, select, button { font: inherit; padding: 0.4rem 0.5rem; }
+    button { cursor: pointer; }
+    .error { color: #b00020; margin: 0.5rem 0; }
+    .filter { display: flex; gap: 0.5rem; align-items: center; margin: 1rem 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #ddd; }
+    th { font-size: 0.85rem; text-transform: uppercase; color: #666; }
+    .badge { display: inline-block; padding: 0.1rem 0.5rem; border-radius: 999px; font-size: 0.8rem; background: #eee; }
+    .badge.new { background: #e3f2fd; } .badge.contacted { background: #fff3e0; }
+    .badge.qualified { background: #ede7f6; } .badge.won { background: #e8f5e9; } .badge.lost { background: #fbe9e7; }
+    .empty { color: #666; padding: 1rem 0; }
+  </style>
+</head>
+<body>
+  <h1>Sales Leads Tracker</h1>
+
+  <form class="add" method="post" action="/leads">
+    <label>Name <input name="name" required maxlength="100" value="{{ form.name }}"></label>
+    <label>Company <input name="company" required maxlength="100" value="{{ form.company }}"></label>
+    <label>Region <input name="region" required maxlength="100" value="{{ form.region }}"></label>
+    <label>Status
+      <select name="status">
+        {% for s in statuses %}
+          <option value="{{ s.value }}" {% if s.value == form.status %}selected{% endif %}>{{ s.value }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <button type="submit">Add lead</button>
+  </form>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+  <form class="filter" method="get" action="/">
+    <label for="status">Filter by status</label>
+    <select id="status" name="status" onchange="this.form.submit()">
+      <option value="" {% if not status_filter %}selected{% endif %}>All</option>
+      {% for s in statuses %}
+        <option value="{{ s.value }}" {% if s == status_filter %}selected{% endif %}>{{ s.value }}</option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">Apply</button></noscript>
+    <span>{{ leads|length }} lead{{ '' if leads|length == 1 else 's' }}</span>
+  </form>
+
+  {% if leads %}
+  <table>
+    <thead><tr><th>Name</th><th>Company</th><th>Region</th><th>Status</th><th>Created</th></tr></thead>
+    <tbody>
+      {% for lead in leads %}
+      <tr>
+        <td>{{ lead.name }}</td>
+        <td>{{ lead.company }}</td>
+        <td>{{ lead.region }}</td>
+        <td><span class="badge {{ lead.status.value }}">{{ lead.status.value }}</span></td>
+        <td>{{ lead.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="empty">No leads{% if status_filter %} with status "{{ status_filter.value }}"{% endif %} yet.</p>
+  {% endif %}
+</body>
+</html>
