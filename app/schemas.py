@@ -19,6 +19,10 @@ class LeadCreate(BaseModel):
     status: Status = Status.new
 
 
+class LeadStatusUpdate(BaseModel):
+    status: Status
+
+
 class LeadOut(LeadCreate):
     model_config = ConfigDict(from_attributes=True)
 

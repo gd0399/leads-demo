@@ -65,3 +65,51 @@ def test_get_missing_lead_is_404(client):
     r = client.get("/api/leads/999")
     assert r.status_code == 404
     assert r.json()["detail"] == "Lead not found"
+
+
+def test_update_status(client, lead_payload):
+    created = client.post("/api/leads", json=lead_payload).json()
+    r = client.patch(f"/api/leads/{created['id']}", json={"status": "won"})
+    assert r.status_code == 200
+    assert r.json() == {**created, "status": "won"}
+    assert client.get(f"/api/leads/{created['id']}").json()["status"] == "won"
+
+
+def test_update_status_on_missing_lead_is_404(client):
+    r = client.patch("/api/leads/999", json={"status": "won"})
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Lead not found"
+
+
+def test_update_with_invalid_status_is_422(client, lead_payload):
+    created = client.post("/api/leads", json=lead_payload).json()
+    r = client.patch(f"/api/leads/{created['id']}", json={"status": "maybe"})
+    assert r.status_code == 422
+    assert client.get(f"/api/leads/{created['id']}").json()["status"] == "qualified"
+
+
+def test_update_with_missing_status_is_422(client, lead_payload):
+    created = client.post("/api/leads", json=lead_payload).json()
+    assert client.patch(f"/api/leads/{created['id']}", json={}).status_code == 422
+
+
+def test_delete_lead(client, lead_payload):
+    created = client.post("/api/leads", json=lead_payload).json()
+    r = client.delete(f"/api/leads/{created['id']}")
+    assert r.status_code == 204
+    assert r.content == b""
+    assert client.get(f"/api/leads/{created['id']}").status_code == 404
+    assert client.get("/api/leads").json() == []
+
+
+def test_delete_only_removes_target_lead(client, lead_payload):
+    first = client.post("/api/leads", json=lead_payload).json()
+    client.post("/api/leads", json={**lead_payload, "name": "Bob"})
+    client.delete(f"/api/leads/{first['id']}")
+    assert [lead["name"] for lead in client.get("/api/leads").json()] == ["Bob"]
+
+
+def test_delete_missing_lead_is_404(client):
+    r = client.delete("/api/leads/999")
+    assert r.status_code == 404
+    assert r.json()["detail"] == "Lead not found"

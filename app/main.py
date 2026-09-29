@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, init_db
 from app.models import Lead
-from app.schemas import LeadCreate, LeadOut, Status
+from app.schemas import LeadCreate, LeadOut, LeadStatusUpdate, Status
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
@@ -56,6 +56,30 @@ def get_lead(lead_id: int, db: Session = Depends(get_db)) -> Lead:
     if lead is None:
         raise HTTPException(status_code=404, detail="Lead not found")
     return lead
+
+
+@app.patch("/api/leads/{lead_id}", response_model=LeadOut)
+def update_lead_status(
+    lead_id: int,
+    payload: LeadStatusUpdate,
+    db: Session = Depends(get_db),
+) -> Lead:
+    lead = db.get(Lead, lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    lead.status = payload.status
+    db.commit()
+    db.refresh(lead)
+    return lead
+
+
+@app.delete("/api/leads/{lead_id}", status_code=204)
+def delete_lead(lead_id: int, db: Session = Depends(get_db)) -> None:
+    lead = db.get(Lead, lead_id)
+    if lead is None:
+        raise HTTPException(status_code=404, detail="Lead not found")
+    db.delete(lead)
+    db.commit()
 
 
 # --- HTML UI ----------------------------------------------------------------
