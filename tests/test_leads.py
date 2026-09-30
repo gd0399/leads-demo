@@ -113,3 +113,56 @@ def test_delete_missing_lead_is_404(client):
     r = client.delete("/api/leads/999")
     assert r.status_code == 404
     assert r.json()["detail"] == "Lead not found"
+
+
+def test_search_by_company_is_partial_and_case_insensitive(client, lead_payload):
+    client.post("/api/leads", json={**lead_payload, "company": "Acme Corp"})
+    client.post("/api/leads", json={**lead_payload, "name": "Bob", "company": "Globex"})
+    client.post("/api/leads", json={**lead_payload, "name": "Cy", "company": "ACME Labs"})
+
+    r = client.get("/api/leads/search", params={"company": "acme"})
+    assert r.status_code == 200
+    assert [lead["name"] for lead in r.json()] == ["Cy", "Ada Lovelace"]
+
+
+def test_search_with_no_match_returns_empty_list(client, lead_payload):
+    client.post("/api/leads", json=lead_payload)
+    r = client.get("/api/leads/search", params={"company": "Initech"})
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+def test_search_treats_like_wildcards_literally(client, lead_payload):
+    client.post("/api/leads", json={**lead_payload, "company": "100% Co"})
+    client.post("/api/leads", json={**lead_payload, "name": "Bob", "company": "Acme"})
+    client.post("/api/leads", json={**lead_payload, "name": "Cy", "company": "Foo_Bar"})
+
+    assert [l["name"] for l in client.get("/api/leads/search", params={"company": "%"}).json()] == ["Ada Lovelace"]
+    assert [l["name"] for l in client.get("/api/leads/search", params={"company": "_"}).json()] == ["Cy"]
+
+
+def test_search_does_not_modify_leads(client, lead_payload):
+    client.post("/api/leads", json=lead_payload)
+    client.post("/api/leads", json={**lead_payload, "name": "Bob", "company": "Globex"})
+    before = client.get("/api/leads").json()
+    client.get("/api/leads/search", params={"company": "Acme"})
+    assert client.get("/api/leads").json() == before
+
+
+def test_search_without_company_is_422(client):
+    assert client.get("/api/leads/search").status_code == 422
+
+
+def test_search_with_blank_company_is_422(client):
+    assert client.get("/api/leads/search", params={"company": ""}).status_code == 422
+    assert client.get("/api/leads/search", params={"company": "   "}).status_code == 422
+
+
+def test_search_with_too_long_company_is_422(client):
+    assert client.get("/api/leads/search", params={"company": "x" * 101}).status_code == 422
+
+
+def test_search_route_does_not_shadow_get_by_id(client, lead_payload):
+    created = client.post("/api/leads", json=lead_payload).json()
+    assert client.get(f"/api/leads/{created['id']}").json() == created
+    assert client.get("/api/leads/999").status_code == 404

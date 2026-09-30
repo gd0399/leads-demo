@@ -36,6 +36,7 @@ Tests run against an in-memory database and never touch `leads.db`.
 | POST   | `/api/leads`               | Create a lead (201)                  |
 | GET    | `/api/leads`               | List leads, newest first             |
 | GET    | `/api/leads?status=won`    | List leads with a given status       |
+| GET    | `/api/leads/search?company=acme` | Search leads by company (partial, case-insensitive) |
 | GET    | `/api/leads/{id}`          | Get one lead (404 if missing)        |
 | PATCH  | `/api/leads/{id}`          | Update a lead's status (404 if missing) |
 | DELETE | `/api/leads/{id}`          | Delete a lead (204; 404 if missing)  |
@@ -57,6 +58,8 @@ curl -X POST http://127.0.0.1:8000/api/leads \
   -d '{"name":"Ada Lovelace","company":"Acme","region":"EMEA","status":"qualified"}'
 
 curl "http://127.0.0.1:8000/api/leads?status=qualified"
+
+curl "http://127.0.0.1:8000/api/leads/search?company=acme"
 
 curl -X PATCH http://127.0.0.1:8000/api/leads/1 \
   -H "Content-Type: application/json" \

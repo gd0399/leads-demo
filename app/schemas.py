@@ -23,6 +23,12 @@ class LeadStatusUpdate(BaseModel):
     status: Status
 
 
+class LeadSearch(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    company: str = Field(min_length=1, max_length=100)
+
+
 class LeadOut(LeadCreate):
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
 from pathlib import Path
+from typing import Annotated
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -9,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db, init_db
 from app.models import Lead
-from app.schemas import LeadCreate, LeadOut, LeadStatusUpdate, Status
+from app.schemas import LeadCreate, LeadOut, LeadSearch, LeadStatusUpdate, Status
 
 templates = Jinja2Templates(directory=Path(__file__).parent / "templates")
 
@@ -23,10 +24,14 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Sales Leads Tracker", lifespan=lifespan)
 
 
-def query_leads(db: Session, status: Status | None) -> list[Lead]:
+def query_leads(db: Session, status: Status | None, company: str | None = None) -> list[Lead]:
     query = db.query(Lead)
     if status is not None:
         query = query.filter(Lead.status == status)
+    if company is not None:
+        # Case-insensitive substring match; escape LIKE wildcards so they match literally
+        escaped = company.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        query = query.filter(Lead.company.ilike(f"%{escaped}%", escape="\\"))
     return query.order_by(Lead.created_at.desc(), Lead.id.desc()).all()
 
 
@@ -48,6 +53,15 @@ def list_leads(
     db: Session = Depends(get_db),
 ) -> list[Lead]:
     return query_leads(db, status)
+
+
+# Declared before /api/leads/{lead_id} so "search" isn't parsed as an id
+@app.get("/api/leads/search", response_model=list[LeadOut])
+def search_leads(
+    params: Annotated[LeadSearch, Query()],
+    db: Session = Depends(get_db),
+) -> list[Lead]:
+    return query_leads(db, None, company=params.company)
 
 
 @app.get("/api/leads/{lead_id}", response_model=LeadOut)
